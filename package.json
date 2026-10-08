@@ -1,0 +1,18 @@
+{
+  "name": "cargo-qa-lab",
+  "version": "1.0.0",
+  "description": "An air cargo booking platform, and a test automation suite that tests it at every layer: API, database and browser.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.4"
+  }
+}

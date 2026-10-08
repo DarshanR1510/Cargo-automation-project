@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}New booking · Cargo QA Lab{% endblock %}
+{% block content %}
+<h1>New booking</h1>
+<div class="card">
+  <div id="form-error" class="alert error" role="alert" data-testid="form-error" hidden></div>
+  <form id="booking-form" novalidate data-testid="booking-form">
+    <div class="grid">
+      <div>
+        <label for="origin">Origin</label>
+        <select id="origin" name="origin" required>
+          <option value="">Select origin</option>
+          {% for a in airports %}<option value="{{ a.code }}">{{ a.code }} · {{ a.city }}</option>{% endfor %}
+        </select>
+        <div class="field-error" data-testid="error-origin"></div>
+      </div>
+      <div>
+        <label for="destination">Destination</label>
+        <select id="destination" name="destination" required>
+          <option value="">Select destination</option>
+          {% for a in airports %}<option value="{{ a.code }}">{{ a.code }} · {{ a.city }}</option>{% endfor %}
+        </select>
+        <div class="field-error" data-testid="error-destination"></div>
+      </div>
+      <div>
+        <label for="flight_date">Flight date</label>
+        <input id="flight_date" name="flight_date" type="date" min="{{ today }}" required>
+        <div class="field-error" data-testid="error-flight_date"></div>
+      </div>
+      <div>
+        <label for="commodity">Commodity</label>
+        <input id="commodity" name="commodity" required>
+        <div class="field-error" data-testid="error-commodity"></div>
+      </div>
+      <div>
+        <label for="special_handling">Special handling</label>
+        <select id="special_handling" name="special_handling">
+          {% for code, name in SPECIAL_HANDLING.items() %}<option value="{{ code }}">{{ code }} · {{ name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="pieces">Pieces</label>
+        <input id="pieces" name="pieces" type="number" min="1" max="999" required>
+        <div class="field-error" data-testid="error-pieces"></div>
+      </div>
+      <div>
+        <label for="weight_kg">Actual weight (kg)</label>
+        <input id="weight_kg" name="weight_kg" type="number" step="0.1" min="0.1" max="10000" required>
+        <div class="field-error" data-testid="error-weight_kg"></div>
+      </div>
+      <div>
+        <label for="length_cm">Length (cm)</label>
+        <input id="length_cm" name="length_cm" type="number" min="1" max="300" required>
+        <div class="field-error" data-testid="error-length_cm"></div>
+      </div>
+      <div>
+        <label for="width_cm">Width (cm)</label>
+        <input id="width_cm" name="width_cm" type="number" min="1" max="300" required>
+        <div class="field-error" data-testid="error-width_cm"></div>
+      </div>
+      <div>
+        <label for="height_cm">Height (cm)</label>
+        <input id="height_cm" name="height_cm" type="number" min="1" max="300" required>
+        <div class="field-error" data-testid="error-height_cm"></div>
+      </div>
+    </div>
+    <p class="muted" data-testid="chargeable-preview" id="preview" style="margin:14px 0;">Chargeable weight: enter weight and dimensions</p>
+    <button type="submit" id="submit">Create booking</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const form = document.getElementById('booking-form');
+  const fields = ['origin','destination','flight_date','commodity','pieces','weight_kg','length_cm','width_cm','height_cm'];
+  const num = (id) => parseFloat(document.getElementById(id).value);
+
+  function preview() {
+    const w = num('weight_kg'), l = num('length_cm'), wi = num('width_cm'), h = num('height_cm');
+    if ([w,l,wi,h].some(Number.isNaN)) return;
+    const vol = l * wi * h / 6000;
+    const charge = Math.ceil(Math.max(w, vol) * 2) / 2;
+    document.getElementById('preview').textContent =
+      `Volumetric ${vol.toFixed(2)} kg · Chargeable ${charge.toFixed(1)} kg (estimate)`;
+  }
+  ['weight_kg','length_cm','width_cm','height_cm'].forEach(id => document.getElementById(id).addEventListener('input', preview));
+
+  function clientErrors(data) {
+    const e = {};
+    for (const f of fields) if (!String(data[f] ?? '').trim()) e[f] = 'Required';
+    if (data.origin && data.origin === data.destination) e.destination = 'Must be different from origin';
+    if (data.weight_kg !== '' && Number(data.weight_kg) < 0) e.weight_kg = 'Weight cannot be negative';
+    if (data.pieces !== '' && (Number(data.pieces) < 1 || Number(data.pieces) > 999)) e.pieces = 'Between 1 and 999';
+    return e;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = document.getElementById('submit');
+    const banner = document.getElementById('form-error');
+    banner.hidden = true;
+    document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+    const data = Object.fromEntries(new FormData(form).entries());
+    const errors = clientErrors(data);
+    if (Object.keys(errors).length) {
+      for (const [k, v] of Object.entries(errors)) document.querySelector(`[data-testid="error-${k}"]`).textContent = v;
+      return;
+    }
+    if (!window.CARGO_BUGS) button.disabled = true;
+    button.textContent = 'Creating…';
+    const payload = { ...data, pieces: Number(data.pieces), weight_kg: Number(data.weight_kg),
+      length_cm: Number(data.length_cm), width_cm: Number(data.width_cm), height_cm: Number(data.height_cm) };
+    try {
+      const res = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await res.json();
+      if (res.status === 201) { location.href = `/bookings/${body.id}?created=1`; return; }
+      banner.textContent = body.errors ? body.errors.join(' · ') : (body.detail || 'Something went wrong');
+      banner.hidden = false;
+    } catch (err) {
+      banner.textContent = 'Network error. Please try again.';
+      banner.hidden = false;
+    }
+    button.disabled = false;
+    button.textContent = 'Create booking';
+  });
+</script>
+{% endblock %}

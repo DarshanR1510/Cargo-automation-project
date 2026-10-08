@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Cargo QA Lab{% endblock %}</title>
+  <style>
+    :root { --ink:#1d2430; --muted:#5d6b7c; --line:#dde3ea; --bg:#f6f4ef; --card:#fff;
+            --brand:#8a6d3b; --brand-ink:#fff; --ok:#1f7a4d; --warn:#a15c00; --bad:#b42318; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+    header { background:#1d2430; color:#fff; }
+    .bar { max-width:1100px; margin:0 auto; padding:12px 16px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+    .logo { font-weight:700; letter-spacing:.5px; color:#e7d3a8; text-decoration:none; }
+    nav a { color:#cfd6df; text-decoration:none; margin-right:14px; }
+    nav a:hover { color:#fff; }
+    .who { margin-left:auto; color:#cfd6df; font-size:14px; }
+    .who a { color:#e7d3a8; }
+    main { max-width:1100px; margin:24px auto; padding:0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:18px; }
+    h1 { font-size:24px; margin:0 0 16px; }
+    h2 { font-size:18px; margin:0 0 12px; }
+    label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+    input, select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:14px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    .row > div { flex:1 1 150px; }
+    button, .btn { background:var(--brand); color:var(--brand-ink); border:0; border-radius:6px; padding:10px 16px; font:inherit; cursor:pointer; text-decoration:none; display:inline-block; }
+    button.secondary, .btn.secondary { background:#fff; color:var(--ink); border:1px solid var(--line); }
+    button.danger { background:var(--bad); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); font-size:14px; }
+    td:first-child { white-space:nowrap; }
+    th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+    .table-wrap { overflow-x:auto; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#eef1f5; }
+    .badge.DLV { background:#e3f4ea; color:var(--ok); }
+    .badge.CAN { background:#fde8e6; color:var(--bad); }
+    .badge.BKD { background:#fff3dc; color:var(--warn); }
+    .alert { padding:10px 12px; border-radius:6px; margin-bottom:14px; }
+    .alert.error { background:#fde8e6; color:var(--bad); }
+    .alert.success { background:#e3f4ea; color:var(--ok); }
+    .muted { color:var(--muted); }
+    .field-error { color:var(--bad); font-size:12px; min-height:16px; }
+    .spinner { color:var(--muted); font-style:italic; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
+    .stat { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
+    .stat b { display:block; font-size:26px; }
+    .timeline li { margin-bottom:8px; }
+    .pager { display:flex; gap:8px; align-items:center; margin-top:12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <a class="logo" href="/" data-testid="logo">CARGO QA LAB</a>
+    <nav>
+      {% if user %}
+        {% if user.role == 'customer' %}
+          <a href="/bookings" data-testid="nav-bookings">My bookings</a>
+          <a href="/bookings/new" data-testid="nav-new-booking">New booking</a>
+        {% else %}
+          <a href="/admin" data-testid="nav-admin">Operations</a>
+          <a href="/bookings" data-testid="nav-bookings">All bookings</a>
+        {% endif %}
+      {% endif %}
+      <a href="/track" data-testid="nav-track">Track shipment</a>
+    </nav>
+    <div class="who">
+      {% if user %}
+        <span data-testid="current-user">{{ user.full_name }}</span> ·
+        <a href="/logout" data-testid="logout">Log out</a>
+      {% else %}
+        <a href="/login" data-testid="nav-login">Log in</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<script>window.CARGO_BUGS = {{ 'true' if BUGS else 'false' }};</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

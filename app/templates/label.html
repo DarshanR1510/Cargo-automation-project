@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Label {{ b.awb_number }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:520px;border:2px dashed #1d2430;">
+  <h1 data-testid="label-awb">{{ b.awb_number }}</h1>
+  <p style="font-size:28px;margin:0;" data-testid="label-route">{{ b.origin }} → {{ b.destination }}</p>
+  <p>{{ b.pieces }} pcs · {{ b.chargeable_kg }} kg chargeable · {{ b.special_handling }}</p>
+  <button onclick="window.print()" class="secondary">Print</button>
+</div>
+{% endblock %}

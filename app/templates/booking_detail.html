@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ b.awb_number }} · Cargo QA Lab{% endblock %}
+{% block content %}
+{% if request.query_params.get('created') %}
+  <div class="alert success" role="status" data-testid="created-banner">Booking created. AWB {{ b.awb_number }}</div>
+{% endif %}
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+  <h1 style="margin:0;">AWB <span data-testid="awb-number">{{ b.awb_number }}</span></h1>
+  <div>
+    <a class="btn secondary" href="/bookings/{{ b.id }}/label" target="_blank" data-testid="print-label">Print label</a>
+    {% if b.status == 'BKD' and user.role == 'customer' %}
+      <button class="danger" id="cancel" data-testid="cancel-booking">Cancel booking</button>
+    {% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="grid">
+    <div><label>Status</label><span class="badge {{ b.status }}" data-testid="booking-status">{{ b.status_name }}</span></div>
+    <div><label>Route</label><span data-testid="route">{{ b.origin }} → {{ b.destination }}</span></div>
+    <div><label>Flight date</label><span data-testid="flight-date">{{ b.flight_date }}</span></div>
+    <div><label>Commodity</label><span data-testid="commodity">{{ b.commodity or '' }}</span></div>
+    <div><label>Special handling</label><span data-testid="special-handling">{{ b.special_handling }}</span></div>
+    <div><label>Pieces</label><span data-testid="pieces">{{ b.pieces }}</span></div>
+    <div><label>Actual weight</label><span data-testid="actual-weight">{{ b.weight_kg }} kg</span></div>
+    <div><label>Dimensions</label><span data-testid="dimensions">{{ b.length_cm|int }} × {{ b.width_cm|int }} × {{ b.height_cm|int }} cm</span></div>
+    <div><label>Volumetric weight</label><span data-testid="volumetric-weight">{{ b.volumetric_kg }} kg</span></div>
+    <div><label>Chargeable weight</label><span data-testid="chargeable-weight">{{ b.chargeable_kg }} kg</span></div>
+  </div>
+</div>
+<div class="card">
+  <h2>Tracking</h2>
+  {% if events %}
+  <ol class="timeline" data-testid="timeline">
+    {% for e in events %}
+      <li data-testid="timeline-event"><b>{{ e.milestone }}</b> · {{ e.milestone_name }} · {{ e.location }} · <span class="muted">{{ e.event_time }}</span></li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted" data-testid="no-events">No tracking events yet.</p>
+  {% endif %}
+</div>
+<div class="card">
+  <h2>Documents</h2>
+  <ul data-testid="documents">
+    {% for d in documents %}<li data-testid="document"><a href="/api/documents/{{ d.id }}">{{ d.filename }}</a> <span class="muted">({{ d.size_bytes }} bytes)</span></li>{% endfor %}
+  </ul>
+  <div class="row">
+    <div><label for="file">Upload PDF, PNG or JPG (max 5 MB)</label><input type="file" id="file" accept=".pdf,.png,.jpg,.jpeg"></div>
+    <div style="flex:0 0 auto;"><button id="upload" data-testid="upload-button">Upload</button></div>
+  </div>
+  <div id="upload-msg" role="status" data-testid="upload-message" style="margin-top:8px;"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const cancel = document.getElementById('cancel');
+  if (cancel) cancel.addEventListener('click', async () => {
+    if (!confirm('Cancel booking {{ b.awb_number }}? This cannot be undone.')) return;
+    const res = await fetch('/api/bookings/{{ b.id }}/cancel', { method: 'POST' });
+    if (res.ok) location.reload();
+    else alert((await res.json()).detail);
+  });
+  document.getElementById('upload').addEventListener('click', async () => {
+    const input = document.getElementById('file');
+    const msg = document.getElementById('upload-msg');
+    if (!input.files.length) { msg.textContent = 'Choose a file first'; return; }
+    const fd = new FormData(); fd.append('file', input.files[0]);
+    const res = await fetch('/api/bookings/{{ b.id }}/documents', { method: 'POST', body: fd });
+    const body = await res.json();
+    if (res.status === 201) { msg.textContent = `Uploaded ${body.filename}`; setTimeout(() => location.reload(), 400); }
+    else msg.textContent = body.detail || 'Upload failed';
+  });
+</script>
+{% endblock %}

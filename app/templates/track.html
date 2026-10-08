@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Track shipment · Cargo QA Lab{% endblock %}
+{% block content %}
+<h1>Track a shipment</h1>
+<div class="card">
+  <form id="track-form" class="row" data-testid="track-form">
+    <div><label for="awb">AWB number</label><input id="awb" name="awb" placeholder="607-12345675" value="{{ awb }}"></div>
+    <div style="flex:0 0 auto;"><button type="submit">Track</button></div>
+  </form>
+</div>
+<div id="result"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const result = document.getElementById('result');
+  async function track(awb) {
+    result.innerHTML = '<p class="spinner" data-testid="tracking-loading">Looking up shipment…</p>';
+    const res = await fetch('/api/tracking/' + encodeURIComponent(awb));
+    const body = await res.json();
+    if (!res.ok) { result.innerHTML = `<div class="alert error" role="alert" data-testid="tracking-error">${body.detail}</div>`; return; }
+    const events = body.events.length
+      ? '<ol class="timeline">' + body.events.map(e => `<li data-testid="tracking-event"><b>${e.milestone}</b> · ${e.milestone_name} · ${e.location} · <span class="muted">${e.event_time}</span></li>`).join('') + '</ol>'
+      : '<p class="muted" data-testid="no-events">No tracking events yet.</p>';
+    result.innerHTML = `<div class="card" data-testid="tracking-result">
+      <h2>${body.awb_number} · ${body.origin} → ${body.destination}</h2>
+      <p>Status: <span class="badge ${body.status}" data-testid="tracking-status">${body.status_name}</span> · ${body.pieces} pcs · ${body.chargeable_kg} kg</p>
+      ${events}</div>`;
+  }
+  document.getElementById('track-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const awb = document.getElementById('awb').value.trim();
+    history.replaceState(null, '', '/track?awb=' + encodeURIComponent(awb));
+    track(awb);
+  });
+  if (document.getElementById('awb').value) track(document.getElementById('awb').value);
+</script>
+{% endblock %}

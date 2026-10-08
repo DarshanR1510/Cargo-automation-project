@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Operations · Cargo QA Lab{% endblock %}
+{% block content %}
+<h1>Operations dashboard</h1>
+<div class="stats" id="stats" data-testid="summary">
+  <div class="stat"><span class="muted">Active bookings</span><b data-testid="active-bookings">…</b></div>
+  <div class="stat"><span class="muted">Active chargeable kg</span><b data-testid="active-kg">…</b></div>
+  <div class="stat"><span class="muted">Delivered</span><b data-testid="delivered-count">…</b></div>
+  <div class="stat"><span class="muted">Cancelled</span><b data-testid="cancelled-count">…</b></div>
+</div>
+<div class="card" style="margin-top:18px;">
+  <h2>Record a milestone</h2>
+  <div id="event-msg" role="status" data-testid="event-message"></div>
+  <form id="event-form" class="row" data-testid="event-form">
+    <div><label for="booking_id">Booking ID</label><input id="booking_id" type="number" required></div>
+    <div><label for="milestone">Milestone</label>
+      <select id="milestone">{% for m in milestones %}<option value="{{ m }}">{{ m }} · {{ MILESTONE_NAMES[m] }}</option>{% endfor %}</select></div>
+    <div><label for="location">Location</label><input id="location" maxlength="3" required></div>
+    <div style="flex:0 0 auto;"><button type="submit">Add event</button></div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  async function loadSummary() {
+    const s = await (await fetch('/api/admin/summary')).json();
+    document.querySelector('[data-testid="active-bookings"]').textContent = s.active_bookings;
+    document.querySelector('[data-testid="active-kg"]').textContent = s.active_chargeable_kg;
+    document.querySelector('[data-testid="delivered-count"]').textContent = s.by_status.DLV || 0;
+    document.querySelector('[data-testid="cancelled-count"]').textContent = s.by_status.CAN || 0;
+  }
+  document.getElementById('event-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('booking_id').value;
+    const msg = document.getElementById('event-msg');
+    const res = await fetch(`/api/bookings/${id}/events`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ milestone: document.getElementById('milestone').value, location: document.getElementById('location').value }) });
+    const body = await res.json();
+    msg.className = res.ok ? 'alert success' : 'alert error';
+    msg.textContent = res.ok ? `Recorded ${body.milestone} for booking ${id}` : body.detail;
+    if (res.ok) loadSummary();
+  });
+  loadSummary();
+</script>
+{% endblock %}

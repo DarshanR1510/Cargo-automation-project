@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Bookings · Cargo QA Lab{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+  <h1 style="margin:0;">{{ 'My bookings' if user.role == 'customer' else 'All bookings' }}</h1>
+  <div>
+    <a class="btn secondary" href="/api/bookings/export.csv" data-testid="export-csv" download>Export CSV</a>
+    {% if user.role == 'customer' %}<a class="btn" href="/bookings/new" data-testid="new-booking">New booking</a>{% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="row">
+    <div>
+      <label for="search">Search AWB or commodity</label>
+      <input id="search" type="search" placeholder="e.g. 607-10 or Textiles">
+    </div>
+    <div>
+      <label for="status">Status</label>
+      <select id="status">
+        <option value="">All</option>
+        {% for code, name in MILESTONE_NAMES.items() %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <p class="spinner" data-testid="loading" id="loading">Loading bookings…</p>
+  <div class="table-wrap">
+    <table data-testid="bookings-table">
+      <thead><tr><th>AWB</th><th>Route</th><th>Commodity</th><th>Pieces</th><th>Chargeable kg</th><th>Flight</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p id="empty" class="muted" data-testid="empty-state" hidden>No bookings match your filters.</p>
+  <div class="pager">
+    <button class="secondary" id="prev" data-testid="prev-page">Previous</button>
+    <span id="page-info" data-testid="page-info"></span>
+    <button class="secondary" id="next" data-testid="next-page">Next</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const state = { page: 1, total: 0, pageSize: 10 };
+  let requestSeq = 0;
+  const $ = (id) => document.getElementById(id);
+
+  function esc(v) { return String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  async function load() {
+    const seq = ++requestSeq;
+    $('loading').hidden = false;
+    const params = new URLSearchParams({ page: state.page, page_size: state.pageSize });
+    if ($('search').value.trim()) params.set('search', $('search').value.trim());
+    if ($('status').value) params.set('status', $('status').value);
+    const res = await fetch('/api/bookings?' + params);
+    if (res.status === 401) { location.href = '/login?next=/bookings'; return; }
+    const data = await res.json();
+    // A correct client ignores responses that arrive after a newer request was sent.
+    if (!window.CARGO_BUGS && seq !== requestSeq) return;
+    state.total = data.total;
+    $('rows').innerHTML = data.items.map(b => `
+      <tr data-testid="booking-row">
+        <td><a href="/bookings/${b.id}" data-testid="awb-link">${esc(b.awb_number)}</a></td>
+        <td>${esc(b.origin)} → ${esc(b.destination)}</td>
+        <td>${esc(b.commodity)}</td>
+        <td>${b.pieces}</td>
+        <td>${b.chargeable_kg}</td>
+        <td>${esc(b.flight_date)}</td>
+        <td><span class="badge ${esc(b.status)}" data-testid="status-badge">${esc(b.status_name)}</span></td>
+      </tr>`).join('');
+    $('empty').hidden = data.items.length > 0;
+    const pages = Math.max(1, Math.ceil(data.total / state.pageSize));
+    $('page-info').textContent = `Page ${state.page} of ${pages} · ${data.total} bookings`;
+    $('prev').disabled = state.page <= 1;
+    $('next').disabled = state.page >= pages;
+    $('loading').hidden = true;
+  }
+
+  let timer;
+  $('search').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { state.page = 1; load(); }, 250); });
+  $('status').addEventListener('change', () => { state.page = 1; load(); });
+  $('prev').addEventListener('click', () => { state.page--; load(); });
+  $('next').addEventListener('click', () => { state.page++; load(); });
+  load();
+</script>
+{% endblock %}
